@@ -1,0 +1,8 @@
+﻿# TapTalk Mobile 開発ルール
+
+- 単一のHTMLファイル（index.html）内に HTML / CSS / JavaScript をすべて集約する Single Page Application とします。
+- 外部ライブラリや外部CDN（React, Vue, TailwindCSS等）は一切使用せず、Vanilla HTML/CSS/JS のみで実装してください。
+- サーバー通信やデータベース接続は行わず、完全オフラインで動作させてください。
+- スマホ操作に最適化し、タップ時に「視覚」「効果音（Web Audio API）」「振動（vibrate）」の3重フィードバックを実装してください。
+- iOSのAutoplay制限対策のため、音声再生はユーザーのタップ操作の同期処理内で直接呼び出してください。
+- LocalStorageのエラー処理（try...catch）を徹底し、失敗時はメモリ上のデフォルトデータへフォールバックしてください。

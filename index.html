@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TapTalk Mobile</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg: #f1f5f9;
+            --card-bg: #ffffff;
+            --text: #0f172a;
+            --text-muted: #64748b;
+            --danger: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            touch-action: manipulation;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 12px;
+            padding-bottom: 90px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        /* 認識・発話ディスプレイ */
+        #speechDisplay {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 16px;
+            min-height: 72px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 2px solid #e2e8f0;
+        }
+
+        #speechText {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: var(--text);
+            word-break: break-all;
+        }
+
+        #speechPlaceholder {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        /* 操作アクションバー */
+        .action-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px 8px;
+            border-radius: 12px;
+            border: none;
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .btn-mic {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-mic.listening {
+            background: #ef4444;
+            animation: pulse 1.5s infinite;
+        }
+
+        .btn-add {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-manage {
+            background: #e2e8f0;
+            color: var(--text);
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.6;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        /* カテゴリタブ（横スクロール） */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+
+        .tabs::-webkit-scrollbar {
+            display: none;
+        }
+
+        .tab-btn {
+            background: var(--card-bg);
+            border: 1.5px solid #cbd5e1;
+            padding: 10px 16px;
+            border-radius: 24px;
+            white-space: nowrap;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* カードグリッド (スマホ用2列) */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px 12px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            cursor: pointer;
+            position: relative;
+            border: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 110px;
+        }
+
+        .card:active {
+            transform: scale(0.97);
+            background: #f8fafc;
+        }
+
+        .card-icon {
+            font-size: 2.2rem;
+            margin-bottom: 8px;
+        }
+
+        .card-text {
+            font-size: 0.95rem;
+            font-weight: bold;
+            line-height: 1.3;
+        }
+
+        /* 削除ボタン */
+        .delete-card-btn {
+            display: none;
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            background: var(--danger);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        body.manage-mode .delete-card-btn {
+            display: block;
+        }
+
+        /* お休み・日付・時間連絡セクション */
+        #calendarSection {
+            display: none;
+            background: var(--card-bg);
+            padding: 16px;
+            border-radius: 16px;
+            margin-bottom: 12px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .quick-dates {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            margin-bottom: 12px;
+        }
+
+        .quick-dates button {
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            font-weight: bold;
+        }
+
+        .time-picker-box {
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 10px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .time-picker-box label {
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: var(--text-muted);
+        }
+
+        .time-picker-box input[type="time"] {
+            padding: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            background: #fff;
+        }
+
+        .type-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .type-btn {
+            padding: 12px 8px;
+            border-radius: 10px;
+            border: 1.5px solid var(--primary);
+            background: #eef2ff;
+            color: var(--primary);
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .type-btn:active {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* モーダル */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 16px;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .modal input,
+        .modal select {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0 16px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            display: none;
+            font-size: 0.9rem;
+            z-index: 2000;
+        }
+
+        .toast.show {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- 発話・文字起こしテキスト表示エリア -->
+    <div id="speechDisplay">
+        <span id="speechPlaceholder">タップして発話 / マイクで文字起こし</span>
+        <span id="speechText" style="display:none;"></span>
+    </div>
+
+    <!-- 操作ボタン -->
+    <div class="action-bar">
+        <button class="btn btn-mic" id="micBtn" onclick="toggleSpeechRecognition()">🎤 音声入力</button>
+        <button class="btn btn-add" onclick="openAddModal()">➕ カード作成</button>
+        <button class="btn btn-manage" id="manageBtn" onclick="toggleManageMode()">⚙️ 編集</button>
+    </div>
+
+    <!-- お休み・予定設定セクション -->
+    <div id="calendarSection">
+        <h3 style="margin:0 0 8px 0; font-size:1rem;">📅 日時を選んでワンタッチ連絡</h3>
+
+        <!-- 日付選択 -->
+        <input type="date" id="leaveDateInput"
+            style="width:100%; padding:10px; font-size:1rem; border-radius:8px; border:1px solid #cbd5e1;">
+
+        <div class="quick-dates">
+            <button onclick="setQuickDate(0)">今日</button>
+            <button onclick="setQuickDate(1)">明日</button>
+            <button onclick="setQuickDate(2)">明後日</button>
+        </div>
+
+        <!-- 時間選択 (任意) -->
+        <div class="time-picker-box">
+            <label for="leaveTimeInput">⏰ 時間指定（必要な場合）</label>
+            <input type="time" id="leaveTimeInput" value="10:00">
+        </div>
+
+        <div style="font-size:0.85rem; color:var(--text-muted); font-weight:bold; margin-bottom:4px;">タップしてカード作成＆送信:
+        </div>
+        <div class="type-grid">
+            <button class="type-btn" onclick="generateLeaveCard('お休みします', '📅', false)">📅 終日お休み</button>
+            <button class="type-btn" onclick="generateLeaveCard('頃に到着予定です', '⏱️', true)">⏱️ 時間指定遅刻</button>
+            <button class="type-btn" onclick="generateLeaveCard('に早退します', '🏃‍♂️', true)">🏃‍♂️ 時間指定早退</button>
+            <button class="type-btn" onclick="generateLeaveCard('午前中お休みします', '🌅', false)">🌅 午前休</button>
+            <button class="type-btn" onclick="generateLeaveCard('午後からお休みします', '🌇', false)">🌇 午後休</button>
+            <button class="type-btn" onclick="generateLeaveCard('通院のため遅れます', '🏥', true)">🏥 通院（時間指定）</button>
+        </div>
+    </div>
+
+    <!-- カテゴリタブ -->
+    <div class="tabs" id="categoryTabs"></div>
+
+    <!-- カード一覧 -->
+    <div class="cards-grid" id="cardsGrid"></div>
+
+    <!-- カード作成モーダル -->
+    <div class="modal" id="addModal">
+        <div class="modal-content">
+            <h3 style="margin-top:0;">新しいカードを追加</h3>
+            <label>カテゴリ</label>
+            <select id="modalCategory"></select>
+
+            <label>絵文字（アイコン）</label>
+            <input type="text" id="modalIcon" placeholder="例: ⏱️" value="💬">
+
+            <label>話す言葉（テキスト）</label>
+            <input type="text" id="modalText" placeholder="例: 電車遅延で遅れます">
+
+            <div style="display:flex; gap:8px;">
+                <button onclick="closeAddModal()"
+                    style="flex:1; padding:12px; border-radius:8px; border:1px solid #ccc; background:#fff;">キャンセル</button>
+                <button onclick="saveNewCard()"
+                    style="flex:1; padding:12px; border-radius:8px; border:none; background:var(--primary); color:white; font-weight:bold;">追加</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- トースト通知 -->
+    <div id="toastMsg" class="toast"></div>
+
+    <!-- JavaScript機能部 -->
+    <script>
+        const defaultCategories = [
+            {
+                id: "work",
+                name: "作業・指示",
+                cards: [
+                    { id: "w1", icon: "✅", text: "確認をお願いします。" },
+                    { id: "w2", icon: "⏱️", text: "あと何分作業したほうがいいですか？" },
+                    { id: "w3", icon: "🧹", text: "掃除場所はどこですか？" },
+                    { id: "w4", icon: "🪑", text: "椅子に座って作業していいですか？" },
+                    { id: "w5", icon: "❓", text: "わからないことがあるので来ていただけますか？" },
+                    { id: "w6", icon: "🔄", text: "もう一度説明をお願いできますか？" },
+                    { id: "w7", icon: "📄", text: "次のスケジュールは何ですか？" }
+                ]
+            },
+            {
+                id: "morning",
+                name: "朝礼・挨拶",
+                cards: [
+                    { id: "m1", icon: "🌅", text: "みなさんおはようございます！" },
+                    { id: "m2", icon: "🤝", text: "よろしくお願いいたします。" },
+                    { id: "m3", icon: "🙋‍♂️", text: "はい、出席しています。" },
+                    { id: "m4", icon: "🚪", text: "お先に失礼します。お疲れ様でした！" },
+                    { id: "m5", icon: "👋", text: "御用は何でしょうか？" }
+                ]
+            },
+            {
+                id: "health",
+                name: "体調・移動",
+                cards: [
+                    { id: "h1", icon: "🚻", text: "トイレに行っていいですか？" },
+                    { id: "h2", icon: "☕", text: "5分休憩してもいいですか？" },
+                    { id: "h3", icon: "🤒", text: "少し体調がすぐれません。" },
+                    { id: "h4", icon: "🙆‍♂️", text: "大丈夫です！問題ありません。" }
+                ]
+            },
+            {
+                id: "chat",
+                name: "雑談・返答",
+                cards: [
+                    { id: "c1", icon: "😊", text: "ありがとうございます！" },
+                    { id: "c2", icon: "👉", text: "今、お時間いいですか？" },
+                    { id: "c3", icon: "👏", text: "そうなんですね！" },
+                    { id: "c4", icon: "🎮", text: "趣味やお話しをしませんか？" },
+                    { id: "c5", icon: "🍱", text: "一緒にお昼どうですか？" }
+                ]
+            },
+            {
+                id: "leave",
+                name: "📅 お休み・遅刻",
+                cards: []
+            }
+        ];
+
+        let appData = [];
+        let currentCategoryId = "work";
+        let isManageMode = false;
+        let isListening = false;
+        let recognition = null;
+
+        const synth = window.speechSynthesis;
+        let audioCtx = null;
+
+        function triggerHaptic() {
+            if (navigator.vibrate) navigator.vibrate(30);
+        }
+
+        function playTapChime() {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, now);
+                osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.linearRampToValueAtTime(0.0001, now + 0.1);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.11);
+            } catch (e) { }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById("toastMsg");
+            if (!toast) return;
+            toast.textContent = msg;
+            toast.classList.add("show");
+            setTimeout(() => toast.classList.remove("show"), 2000);
+        }
+
+        function initApp() {
+            loadData();
+            const leaveDateInput = document.getElementById("leaveDateInput");
+            if (leaveDateInput) {
+                const today = new Date().toISOString().split('T')[0];
+                leaveDateInput.value = today;
+            }
+            renderCategoryTabs();
+            renderCards();
+            populateModalCategories();
+            initSpeechRecognition();
+        }
+
+        function loadData() {
+            const savedData = localStorage.getItem("taptalk_pixel_v1");
+            if (savedData) {
+                try { appData = JSON.parse(savedData); } catch (e) { appData = defaultCategories; }
+            } else {
+                appData = defaultCategories;
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem("taptalk_pixel_v1", JSON.stringify(appData));
+        }
+
+        function renderCategoryTabs() {
+            const tabsContainer = document.getElementById("categoryTabs");
+            if (!tabsContainer) return;
+            tabsContainer.innerHTML = "";
+
+            appData.forEach(cat => {
+                const btn = document.createElement("button");
+                btn.className = `tab-btn ${cat.id === currentCategoryId ? 'active' : ''}`;
+                btn.textContent = cat.name;
+                btn.onclick = () => {
+                    triggerHaptic();
+                    currentCategoryId = cat.id;
+                    renderCategoryTabs();
+                    renderCards();
+                };
+                tabsContainer.appendChild(btn);
+            });
+        }
+
+        function renderCards() {
+            const grid = document.getElementById("cardsGrid");
+            const calSection = document.getElementById("calendarSection");
+            if (!grid) return;
+            grid.innerHTML = "";
+
+            if (calSection) {
+                calSection.style.display = (currentCategoryId === "leave") ? "block" : "none";
+            }
+
+            const currentCat = appData.find(c => c.id === currentCategoryId);
+            if (!currentCat || currentCat.cards.length === 0) {
+                if (currentCategoryId !== "leave") {
+                    grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 30px 0;">カードがありません</div>`;
+                }
+                return;
+            }
+
+            currentCat.cards.forEach(card => {
+                const cardEl = document.createElement("div");
+                cardEl.className = "card";
+                cardEl.innerHTML = `
+                    <button class="delete-card-btn" onclick="deleteCard(event, '${card.id}')">✕</button>
+                    <div class="card-icon">${card.icon}</div>
+                    <div class="card-text">${card.text}</div>
+                `;
+                cardEl.onclick = () => {
+                    if (isManageMode) return;
+                    triggerHaptic();
+                    speakText(card.text);
+                };
+                grid.appendChild(cardEl);
+            });
+        }
+
+        function speakText(text) {
+            const placeholder = document.getElementById("speechPlaceholder");
+            const speechText = document.getElementById("speechText");
+            if (placeholder) placeholder.style.display = "none";
+            if (speechText) {
+                speechText.style.display = "block";
+                speechText.textContent = text;
+            }
+
+            playTapChime();
+
+            if (synth) {
+                synth.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = "ja-JP";
+                synth.speak(utterance);
+            }
+        }
+
+        /* 音声文字起こし (SpeechRecognition) */
+        function initSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                const micBtn = document.getElementById("micBtn");
+                if (micBtn) micBtn.style.display = "none";
+                return;
+            }
+            recognition = new SpeechRecognition();
+            recognition.lang = 'ja-JP';
+            recognition.continuous = false;
+            recognition.interimResults = true;
+
+            recognition.onresult = (event) => {
+                let transcript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    transcript += event.results[i][0].transcript;
+                }
+                const placeholder = document.getElementById("speechPlaceholder");
+                const speechText = document.getElementById("speechText");
+                if (placeholder) placeholder.style.display = "none";
+                if (speechText) {
+                    speechText.style.display = "block";
+                    speechText.textContent = transcript;
+                }
+            };
+
+            recognition.onend = () => {
+                isListening = false;
+                const micBtn = document.getElementById("micBtn");
+                if (micBtn) {
+                    micBtn.classList.remove("listening");
+                    micBtn.textContent = "🎤 音声入力";
+                }
+            };
+        }
+
+        function toggleSpeechRecognition() {
+            if (!recognition) {
+                showToast("お使いのブラウザは音声入力非対応です");
+                return;
+            }
+            triggerHaptic();
+            const micBtn = document.getElementById("micBtn");
+            if (isListening) {
+                recognition.stop();
+            } else {
+                try {
+                    recognition.start();
+                    isListening = true;
+                    if (micBtn) {
+                        micBtn.classList.add("listening");
+                        micBtn.textContent = "🛑 聞き取り中…";
+                    }
+                } catch (e) { }
+            }
+        }
+
+        /* 編集・追加・削除機能 */
+        function toggleManageMode() {
+            triggerHaptic();
+            isManageMode = !isManageMode;
+            document.body.classList.toggle("manage-mode", isManageMode);
+            const manageBtn = document.getElementById("manageBtn");
+            if (manageBtn) {
+                manageBtn.textContent = isManageMode ? "✅ 完了" : "⚙️ 編集";
+                manageBtn.style.background = isManageMode ? "#10b981" : "#e2e8f0";
+                manageBtn.style.color = isManageMode ? "white" : "var(--text)";
+            }
+        }
+
+        function deleteCard(event, cardId) {
+            event.stopPropagation();
+            triggerHaptic();
+            const currentCat = appData.find(c => c.id === currentCategoryId);
+            if (currentCat) {
+                currentCat.cards = currentCat.cards.filter(c => c.id !== cardId);
+                saveData();
+                renderCards();
+                showToast("カードを削除しました");
+            }
+        }
+
+        function openAddModal() {
+            triggerHaptic();
+            populateModalCategories();
+            document.getElementById("addModal").style.display = "flex";
+        }
+
+        function closeAddModal() {
+            document.getElementById("addModal").style.display = "none";
+        }
+
+        function populateModalCategories() {
+            const select = document.getElementById("modalCategory");
+            if (!select) return;
+            select.innerHTML = "";
+            appData.forEach(cat => {
+                const opt = document.createElement("option");
+                opt.value = cat.id;
+                opt.textContent = cat.name;
+                select.appendChild(opt);
+            });
+            select.value = currentCategoryId;
+        }
+
+        function saveNewCard() {
+            const catId = document.getElementById("modalCategory").value;
+            const icon = document.getElementById("modalIcon").value.trim() || "💬";
+            const text = document.getElementById("modalText").value.trim();
+
+            if (!text) {
+                showToast("言葉を入力してください");
+                return;
+            }
+
+            const cat = appData.find(c => c.id === catId);
+            if (cat) {
+                cat.cards.push({
+                    id: "custom_" + Date.now(),
+                    icon: icon,
+                    text: text
+                });
+                saveData();
+                closeAddModal();
+                document.getElementById("modalText").value = "";
+                currentCategoryId = catId;
+                renderCategoryTabs();
+                renderCards();
+                showToast("カードを追加しました");
+            }
+        }
+
+        /* 予定・お休み・時間連絡機能 */
+        function setQuickDate(addDays) {
+            triggerHaptic();
+            const d = new Date();
+            d.setDate(d.getDate() + addDays);
+            const leaveDateInput = document.getElementById("leaveDateInput");
+            if (leaveDateInput) {
+                leaveDateInput.value = d.toISOString().split('T')[0];
+            }
+        }
+
+        function formatTimeText(timeVal) {
+            if (!timeVal) return "";
+            const parts = timeVal.split(":");
+            const hours = parseInt(parts[0], 10);
+            const minutes = parseInt(parts[1], 10);
+            return minutes === 0 ? `${hours}時` : `${hours}時${minutes}分`;
+        }
+
+        function generateLeaveCard(typeText, icon, includeTime) {
+            triggerHaptic();
+            const dateInput = document.getElementById("leaveDateInput");
+            const timeInput = document.getElementById("leaveTimeInput");
+            if (!dateInput || !dateInput.value) return;
+
+            const dateObj = new Date(dateInput.value);
+            const days = ['日', '月', '火', '水', '木', '金', '土'];
+            const dateStr = `${dateObj.getMonth() + 1}月${dateObj.getDate()}日（${days[dateObj.getDay()]}）`;
+
+            let timeStr = "";
+            if (includeTime && timeInput && timeInput.value) {
+                timeStr = formatTimeText(timeInput.value) + " ";
+            }
+
+            const fullText = `${dateStr} ${timeStr}${typeText}`;
+
+            const leaveCat = appData.find(c => c.id === "leave");
+            if (leaveCat) {
+                leaveCat.cards.push({
+                    id: "leave_" + Date.now(),
+                    icon: icon || "📅",
+                    text: fullText
+                });
+                saveData();
+                renderCards();
+            }
+            speakText(fullText);
+        }
+
+        window.onload = initApp;
+    </script>
+</body>
+
+</html>
