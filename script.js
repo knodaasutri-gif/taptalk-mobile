@@ -1,375 +1,77 @@
-const defaultCategories = [
-    {
-        id: "work",
-        name: "作業・指示",
-        cards: [
-            { id: "w1", icon: "✅", text: "確認をお願いします。" },
-            { id: "w2", icon: "⏱️", text: "あと何分作業したほうがいいですか？" },
-            { id: "w3", icon: "🧹", text: "掃除場所はどこですか？" },
-            { id: "w4", icon: "🪑", text: "椅子に座って作業していいですか？" },
-            { id: "w5", icon: "❓", text: "わからないことがあるので来ていただけますか？" },
-            { id: "w6", icon: "🔄", text: "もう一度説明をお願いできますか？" },
-            { id: "w7", icon: "📄", text: "次のスケジュールは何ですか？" }
-        ]
+(() => {
+  'use strict';
+  const STORAGE_KEY = 'taptalk_mobile_cards';
+  const LEGACY_STORAGE_KEY = 'taptalk_pixel_v1';
+  const categories = [
+    { id: 'work', name: '作業・指示', cards: [['✅','確認をお願いします。'],['⏱️','あと何分作業したほうがいいですか？'],['🧹','掃除場所はどこですか？'],['🪑','椅子に座って作業していいですか？'],['❓','わからないことがあるので来ていただけますか？'],['🔄','もう一度説明をお願いできますか？'],['📄','次のスケジュールは何ですか？']] },
+    { id: 'morning', name: '朝礼・挨拶', cards: [['🌅','みなさんおはようございます！'],['🤝','よろしくお願いいたします。'],['🙋‍♂️','はい、出席しています。'],['🚪','お先に失礼します。お疲れ様でした！'],['👋','御用は何でしょうか？']] },
+    { id: 'health', name: '体調・移動', cards: [['🚻','トイレに行っていいですか？'],['☕','5分休憩してもいいですか？'],['🤒','少し体調がすぐれません。'],['🙆‍♂️','大丈夫です！問題ありません。']] },
+    { id: 'chat', name: '雑談・返答', cards: [['😊','ありがとうございます！'],['👉','今、お時間いいですか？'],['👏','そうなんですね！'],['🎮','趣味やお話しをしませんか？'],['🍱','一緒にお昼どうですか？']] },
+    { id: 'leave', name: '📅 お休み・遅刻', cards: [] }
+  ];
+  const state = { cards: [], categoryId: 'work', managing: false, editingId: null, listening: false, recognition: null, audioContext: null, storageAvailable: true };
+  const $ = (id) => document.getElementById(id);
+  const defaultCards = () => categories.flatMap((category) => category.cards.map(([emoji, text], index) => ({ id: `${category.id}-${index + 1}`, category: category.id, emoji, text, isCustom: false, createdAt: null })));
+
+  function normalizeCard(card) {
+    if (!card || typeof card.text !== 'string') return null;
+    return { id: String(card.id || `card_${Date.now()}_${Math.random().toString(36).slice(2)}`), category: categories.some((c) => c.id === card.category) ? card.category : 'work', emoji: String(card.emoji || card.icon || '💬').slice(0, 16), text: card.text.trim().slice(0, 200), isCustom: Boolean(card.isCustom), createdAt: card.createdAt || new Date().toISOString() };
+  }
+  function migrateLegacy(value) {
+    if (!Array.isArray(value)) return [];
+    if (value.length && Array.isArray(value[0]?.cards)) return value.flatMap((category) => (category.cards || []).map((card) => normalizeCard({ ...card, category: category.id, isCustom: !/^[wmhc]\d+$/.test(card.id || '') })));
+    return value.map(normalizeCard).filter(Boolean);
+  }
+  const Storage = {
+    load() {
+      try {
+        const current = localStorage.getItem(STORAGE_KEY);
+        const legacy = current ? null : localStorage.getItem(LEGACY_STORAGE_KEY);
+        const saved = current || legacy;
+        if (!saved) return defaultCards();
+        const parsed = JSON.parse(saved);
+        const cards = migrateLegacy(Array.isArray(parsed) ? parsed : parsed.cards).filter(Boolean);
+        return cards.length ? cards : defaultCards();
+      } catch (error) { state.storageAvailable = false; return defaultCards(); }
     },
-    {
-        id: "morning",
-        name: "朝礼・挨拶",
-        cards: [
-            { id: "m1", icon: "🌅", text: "みなさんおはようございます！" },
-            { id: "m2", icon: "🤝", text: "よろしくお願いいたします。" },
-            { id: "m3", icon: "🙋‍♂️", text: "はい、出席しています。" },
-            { id: "m4", icon: "🚪", text: "お先に失礼します。お疲れ様でした！" },
-            { id: "m5", icon: "👋", text: "御用は何でしょうか？" }
-        ]
-    },
-    {
-        id: "health",
-        name: "体調・移動",
-        cards: [
-            { id: "h1", icon: "🚻", text: "トイレに行っていいですか？" },
-            { id: "h2", icon: "☕", text: "5分休憩してもいいですか？" },
-            { id: "h3", icon: "🤒", text: "少し体調がすぐれません。" },
-            { id: "h4", icon: "🙆‍♂️", text: "大丈夫です！問題ありません。" }
-        ]
-    },
-    {
-        id: "chat",
-        name: "雑談・返答",
-        cards: [
-            { id: "c1", icon: "😊", text: "ありがとうございます！" },
-            { id: "c2", icon: "👉", text: "今、お時間いいですか？" },
-            { id: "c3", icon: "👏", text: "そうなんですね！" },
-            { id: "c4", icon: "🎮", text: "趣味やお話しをしませんか？" },
-            { id: "c5", icon: "🍱", text: "一緒にお昼どうですか？" }
-        ]
-    },
-    {
-        id: "leave",
-        name: "📅 お休み・遅刻",
-        cards: []
+    save() {
+      if (!state.storageAvailable) return;
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.cards)); }
+      catch (error) { state.storageAvailable = false; showToast('端末に保存できないため、この画面の間だけ保持します'); }
     }
-];
-
-let appData = [];
-let currentCategoryId = "work";
-let isManageMode = false;
-let isListening = false;
-let recognition = null;
-
-const synth = window.speechSynthesis;
-let audioCtx = null;
-
-function triggerHaptic() {
-    if (navigator.vibrate) navigator.vibrate(30);
-}
-
-function playTapChime() {
-    try {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        const now = audioCtx.currentTime;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(587.33, now);
-        osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
-        gain.gain.setValueAtTime(0.08, now);
-        gain.gain.linearRampToValueAtTime(0.0001, now + 0.1);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start(now);
-        osc.stop(now + 0.11);
-    } catch (e) { }
-}
-
-function showToast(msg) {
-    const toast = document.getElementById("toastMsg");
-    if (!toast) return;
-    toast.textContent = msg;
-    toast.classList.add("show");
-    setTimeout(() => toast.classList.remove("show"), 2000);
-}
-
-function initApp() {
-    loadData();
-    const leaveDateInput = document.getElementById("leaveDateInput");
-    if (leaveDateInput) {
-        const today = new Date().toISOString().split('T')[0];
-        leaveDateInput.value = today;
-    }
-    renderCategoryTabs();
-    renderCards();
-    populateModalCategories();
-    initSpeechRecognition();
-}
-
-function loadData() {
-    const savedData = localStorage.getItem("taptalk_pixel_v1");
-    if (savedData) {
-        try { appData = JSON.parse(savedData); } catch (e) { appData = defaultCategories; }
-    } else {
-        appData = defaultCategories;
-    }
-}
-
-function saveData() {
-    localStorage.setItem("taptalk_pixel_v1", JSON.stringify(appData));
-}
-
-function renderCategoryTabs() {
-    const tabsContainer = document.getElementById("categoryTabs");
-    if (!tabsContainer) return;
-    tabsContainer.innerHTML = "";
-
-    appData.forEach(cat => {
-        const btn = document.createElement("button");
-        btn.className = `tab-btn ${cat.id === currentCategoryId ? 'active' : ''}`;
-        btn.textContent = cat.name;
-        btn.onclick = () => {
-            triggerHaptic();
-            currentCategoryId = cat.id;
-            renderCategoryTabs();
-            renderCards();
-        };
-        tabsContainer.appendChild(btn);
-    });
-}
-
-function renderCards() {
-    const grid = document.getElementById("cardsGrid");
-    const calSection = document.getElementById("calendarSection");
-    if (!grid) return;
-    grid.innerHTML = "";
-
-    if (calSection) {
-        calSection.style.display = (currentCategoryId === "leave") ? "block" : "none";
-    }
-
-    const currentCat = appData.find(c => c.id === currentCategoryId);
-    if (!currentCat || currentCat.cards.length === 0) {
-        if (currentCategoryId !== "leave") {
-            grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 30px 0;">カードがありません</div>`;
-        }
-        return;
-    }
-
-    currentCat.cards.forEach(card => {
-        const cardEl = document.createElement("div");
-        cardEl.className = "card";
-        cardEl.innerHTML = `
-            <button class="delete-card-btn" onclick="deleteCard(event, '${card.id}')">✕</button>
-            <div class="card-icon">${card.icon}</div>
-            <div class="card-text">${card.text}</div>
-        `;
-        cardEl.onclick = () => {
-            if (isManageMode) return;
-            triggerHaptic();
-            speakText(card.text);
-        };
-        grid.appendChild(cardEl);
-    });
-}
-
-function speakText(text) {
-    const placeholder = document.getElementById("speechPlaceholder");
-    const speechText = document.getElementById("speechText");
-    if (placeholder) placeholder.style.display = "none";
-    if (speechText) {
-        speechText.style.display = "block";
-        speechText.textContent = text;
-    }
-
-    playTapChime();
-
-    if (synth) {
-        synth.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = "ja-JP";
-        synth.speak(utterance);
-    }
-}
-
-/* 音声文字起こし (SpeechRecognition) */
-function initSpeechRecognition() {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-        const micBtn = document.getElementById("micBtn");
-        if (micBtn) micBtn.style.display = "none";
-        return;
-    }
-    recognition = new SpeechRecognition();
-    recognition.lang = 'ja-JP';
-    recognition.continuous = false;
-    recognition.interimResults = true;
-
-    recognition.onresult = (event) => {
-        let transcript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-            transcript += event.results[i][0].transcript;
-        }
-        const placeholder = document.getElementById("speechPlaceholder");
-        const speechText = document.getElementById("speechText");
-        if (placeholder) placeholder.style.display = "none";
-        if (speechText) {
-            speechText.style.display = "block";
-            speechText.textContent = transcript;
-        }
-    };
-
-    recognition.onend = () => {
-        isListening = false;
-        const micBtn = document.getElementById("micBtn");
-        if (micBtn) {
-            micBtn.classList.remove("listening");
-            micBtn.textContent = "🎤 音声入力";
-        }
-    };
-}
-
-function toggleSpeechRecognition() {
-    if (!recognition) {
-        showToast("お使いのブラウザは音声入力非対応です");
-        return;
-    }
-    triggerHaptic();
-    const micBtn = document.getElementById("micBtn");
-    if (isListening) {
-        recognition.stop();
-    } else {
-        try {
-            recognition.start();
-            isListening = true;
-            if (micBtn) {
-                micBtn.classList.add("listening");
-                micBtn.textContent = "🛑 聞き取り中…";
-            }
-        } catch (e) { }
-    }
-}
-
-/* 編集・追加・削除機能 */
-function toggleManageMode() {
-    triggerHaptic();
-    isManageMode = !isManageMode;
-    document.body.classList.toggle("manage-mode", isManageMode);
-    const manageBtn = document.getElementById("manageBtn");
-    if (manageBtn) {
-        manageBtn.textContent = isManageMode ? "✅ 完了" : "⚙️ 編集";
-        manageBtn.style.background = isManageMode ? "#10b981" : "#e2e8f0";
-        manageBtn.style.color = isManageMode ? "white" : "var(--text)";
-    }
-}
-
-function deleteCard(event, cardId) {
-    event.stopPropagation();
-    triggerHaptic();
-    const currentCat = appData.find(c => c.id === currentCategoryId);
-    if (currentCat) {
-        currentCat.cards = currentCat.cards.filter(c => c.id !== cardId);
-        saveData();
-        renderCards();
-        showToast("カードを削除しました");
-    }
-}
-
-function openAddModal() {
-    triggerHaptic();
-    populateModalCategories();
-    document.getElementById("addModal").style.display = "flex";
-}
-
-function closeAddModal() {
-    document.getElementById("addModal").style.display = "none";
-}
-
-function populateModalCategories() {
-    const select = document.getElementById("modalCategory");
-    if (!select) return;
-    select.innerHTML = "";
-    appData.forEach(cat => {
-        const opt = document.createElement("option");
-        opt.value = cat.id;
-        opt.textContent = cat.name;
-        select.appendChild(opt);
-    });
-    select.value = currentCategoryId;
-}
-
-function saveNewCard() {
-    const catId = document.getElementById("modalCategory").value;
-    const icon = document.getElementById("modalIcon").value.trim() || "💬";
-    const text = document.getElementById("modalText").value.trim();
-
-    if (!text) {
-        showToast("言葉を入力してください");
-        return;
-    }
-
-    const cat = appData.find(c => c.id === catId);
-    if (cat) {
-        cat.cards.push({
-            id: "custom_" + Date.now(),
-            icon: icon,
-            text: text
-        });
-        saveData();
-        closeAddModal();
-        document.getElementById("modalText").value = "";
-        currentCategoryId = catId;
-        renderCategoryTabs();
-        renderCards();
-        showToast("カードを追加しました");
-    }
-}
-
-/* 予定・お休み・時間連絡機能 */
-function setQuickDate(addDays) {
-    triggerHaptic();
-    const d = new Date();
-    d.setDate(d.getDate() + addDays);
-    const leaveDateInput = document.getElementById("leaveDateInput");
-    if (leaveDateInput) {
-        leaveDateInput.value = d.toISOString().split('T')[0];
-    }
-}
-
-function formatTimeText(timeVal) {
-    if (!timeVal) return "";
-    const parts = timeVal.split(":");
-    const hours = parseInt(parts[0], 10);
-    const minutes = parseInt(parts[1], 10);
-    return minutes === 0 ? `${hours}時` : `${hours}時${minutes}分`;
-}
-
-function generateLeaveCard(typeText, icon, includeTime) {
-    triggerHaptic();
-    const dateInput = document.getElementById("leaveDateInput");
-    const timeInput = document.getElementById("leaveTimeInput");
-    if (!dateInput || !dateInput.value) return;
-
-    const dateObj = new Date(dateInput.value);
-    const days = ['日', '月', '火', '水', '木', '金', '土'];
-    const dateStr = `${dateObj.getMonth() + 1}月${dateObj.getDate()}日（${days[dateObj.getDay()]}）`;
-
-    let timeStr = "";
-    if (includeTime && timeInput && timeInput.value) {
-        timeStr = formatTimeText(timeInput.value) + " ";
-    }
-
-    const fullText = `${dateStr} ${timeStr}${typeText}`;
-
-    const leaveCat = appData.find(c => c.id === "leave");
-    if (leaveCat) {
-        leaveCat.cards.push({
-            id: "leave_" + Date.now(),
-            icon: icon || "📅",
-            text: fullText
-        });
-        saveData();
-        renderCards();
-    }
-    speakText(fullText);
-}
-
-window.onload = initApp;
+  };
+  function showToast(message) { const toast = $('toastMsg'); toast.textContent = message; toast.classList.add('show'); window.clearTimeout(showToast.timer); showToast.timer = window.setTimeout(() => toast.classList.remove('show'), 2400); }
+  function updateDisplay(text) { $('speechPlaceholder').hidden = true; const display = $('speechText'); display.hidden = false; display.textContent = text; }
+  function feedback() { if (navigator.vibrate) navigator.vibrate(50); playChime(); }
+  function playChime() {
+    try { const AudioContext = window.AudioContext || window.webkitAudioContext; if (!AudioContext) return; state.audioContext ||= new AudioContext(); if (state.audioContext.state === 'suspended') state.audioContext.resume(); const now = state.audioContext.currentTime; const oscillator = state.audioContext.createOscillator(); const gain = state.audioContext.createGain(); oscillator.frequency.setValueAtTime(587.33, now); oscillator.frequency.exponentialRampToValueAtTime(880, now + .1); gain.gain.setValueAtTime(.08, now); gain.gain.exponentialRampToValueAtTime(.0001, now + .12); oscillator.connect(gain).connect(state.audioContext.destination); oscillator.start(now); oscillator.stop(now + .12); } catch (error) { /* audio is optional */ }
+  }
+  function speak(text) { updateDisplay(text); if (!window.speechSynthesis) return; window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = 'ja-JP'; utterance.rate = 1; utterance.pitch = 1; window.speechSynthesis.speak(utterance); }
+  function currentCards() { return state.cards.filter((card) => card.category === state.categoryId); }
+  function render() { renderTabs(); renderCards(); $('calendarSection').hidden = state.categoryId !== 'leave'; }
+  function renderTabs() {
+    const tabs = $('categoryTabs'); tabs.replaceChildren();
+    categories.forEach((category) => { const button = document.createElement('button'); button.type = 'button'; button.className = `tab-btn${category.id === state.categoryId ? ' active' : ''}`; button.textContent = category.name; button.setAttribute('aria-selected', String(category.id === state.categoryId)); button.addEventListener('click', () => { feedback(); state.categoryId = category.id; render(); }); tabs.append(button); });
+  }
+  function renderCards() {
+    const grid = $('cardsGrid'); grid.replaceChildren(); const cards = currentCards();
+    if (!cards.length) { const empty = document.createElement('p'); empty.className = 'empty-state'; empty.textContent = state.categoryId === 'leave' ? 'まだ連絡カードがありません。上の種別を選んで作成できます。' : 'カードがありません。'; grid.append(empty); return; }
+    cards.forEach((card) => { const element = document.createElement('article'); element.className = `card${state.managing ? ' is-manageable' : ''}`; element.setAttribute('role', 'button'); element.tabIndex = 0; element.setAttribute('aria-label', `${card.text}を発話`); const icon = document.createElement('span'); icon.className = 'card-icon'; icon.textContent = card.emoji; const text = document.createElement('span'); text.className = 'card-text'; text.textContent = card.text; element.append(icon, text); const activate = () => { if (state.managing) return; feedback(); speak(card.text); }; element.addEventListener('click', activate); element.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); activate(); } });
+      const actions = document.createElement('span'); actions.className = 'card-edit-actions'; const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'edit-card-btn'; edit.textContent = '✎'; edit.setAttribute('aria-label', 'カードを編集'); edit.addEventListener('click', (event) => { event.stopPropagation(); feedback(); openModal(card); }); const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'delete-card-btn'; remove.textContent = '×'; remove.setAttribute('aria-label', 'カードを削除'); remove.addEventListener('click', (event) => { event.stopPropagation(); feedback(); deleteCard(card.id); }); actions.append(edit, remove); element.append(actions); grid.append(element); });
+  }
+  function openModal(card = null) { state.editingId = card?.id || null; $('modalTitle').textContent = card ? 'カードを編集' : '新しいカードを追加'; $('modalCategory').value = card?.category || state.categoryId; $('modalIcon').value = card?.emoji || '💬'; $('modalText').value = card?.text || ''; $('cardModal').hidden = false; $('modalText').focus(); }
+  function closeModal() { $('cardModal').hidden = true; state.editingId = null; }
+  function saveCard(event) { event.preventDefault(); const text = $('modalText').value.trim(); if (!text) { showToast('話す言葉を入力してください'); return; } const category = $('modalCategory').value; const emoji = $('modalIcon').value.trim() || '💬'; if (state.editingId) { const card = state.cards.find((item) => item.id === state.editingId); if (card) Object.assign(card, { category, emoji, text, isCustom: true }); showToast('カードを更新しました'); } else { state.cards.push({ id: `card_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, category, emoji, text, isCustom: true, createdAt: new Date().toISOString() }); showToast('カードを追加しました'); } state.categoryId = category; Storage.save(); closeModal(); render(); }
+  function deleteCard(id) { const card = state.cards.find((item) => item.id === id); if (!card) return; if (!window.confirm(`「${card.text}」を削除しますか？`)) return; state.cards = state.cards.filter((item) => item.id !== id); Storage.save(); renderCards(); showToast('カードを削除しました'); }
+  function setQuickDate(days) { feedback(); const date = new Date(); date.setDate(date.getDate() + days); $('leaveDateInput').value = localDateValue(date); }
+  function localDateValue(date) { const offset = date.getTimezoneOffset() * 60000; return new Date(date.getTime() - offset).toISOString().slice(0, 10); }
+  function formatDate(value) { const [year, month, day] = value.split('-').map(Number); const date = new Date(year, month - 1, day); return `${month}月${day}日（${['日','月','火','水','木','金','土'][date.getDay()]}）`; }
+  function formatTime(value) { if (!value) return ''; const [hours, minutes] = value.split(':').map(Number); return minutes ? `${hours}時${minutes}分` : `${hours}時`; }
+  function createLeaveCard(type) { feedback(); const date = $('leaveDateInput').value; const time = formatTime($('leaveTimeInput').value); if (!date) { showToast('日付を選んでください'); return; } const dateText = formatDate(date); const templates = { full:['📅', `${dateText} は終日お休みします。`], late:['⏱️', `${dateText}${time ? ` ${time}頃に到着予定です（遅刻）。` : ' は遅刻します。'}`], early:['🏃', `${dateText}${time ? ` ${time}頃に早退します。` : ' は早退します。'}`], am:['🌅', `${dateText} は午前中お休みします。`], pm:['🌇', `${dateText} は午後からお休みします。`], hospital:['🏥', `${dateText}${time ? ` ${time}頃、通院のため遅れます。` : ' は通院のため遅れます。'}`] }; const [emoji, text] = templates[type]; state.cards.push({ id: `leave_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, category:'leave', emoji, text, isCustom:true, createdAt:new Date().toISOString() }); Storage.save(); renderCards(); speak(text); }
+  function setListening(active) { state.listening = active; $('micBtn').classList.toggle('listening', active); $('micBtn').textContent = active ? '🛑 聞き取り中…' : '🎤 音声入力'; $('micBtn').setAttribute('aria-pressed', String(active)); }
+  function initRecognition() { const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition; if (!Recognition) { $('micBtn').disabled = true; $('micBtn').textContent = '🎤 音声入力（非対応）'; return; } const recognition = state.recognition = new Recognition(); recognition.lang = 'ja-JP'; recognition.continuous = false; recognition.interimResults = true; recognition.onresult = (event) => { let transcript = ''; for (let i = event.resultIndex; i < event.results.length; i += 1) transcript += event.results[i][0].transcript; updateDisplay(transcript); }; recognition.onend = () => setListening(false); recognition.onerror = (event) => { if (event.error !== 'aborted') showToast('音声入力を開始できませんでした'); setListening(false); }; }
+  function toggleRecognition() { feedback(); if (!state.recognition) { showToast('お使いのブラウザは音声入力に対応していません'); return; } if (state.listening) { state.recognition.stop(); return; } try { state.recognition.start(); setListening(true); } catch (error) { setListening(false); } }
+  function toggleManage() { feedback(); state.managing = !state.managing; document.body.classList.toggle('manage-mode', state.managing); $('manageBtn').classList.toggle('is-active', state.managing); $('manageBtn').setAttribute('aria-pressed', String(state.managing)); $('manageBtn').textContent = state.managing ? '✅ 完了' : '⚙️ 編集'; renderCards(); }
+  function init() { state.cards = Storage.load(); $('leaveDateInput').value = localDateValue(new Date()); const select = $('modalCategory'); categories.forEach((category) => { const option = document.createElement('option'); option.value = category.id; option.textContent = category.name; select.append(option); }); $('micBtn').addEventListener('click', toggleRecognition); $('addBtn').addEventListener('click', () => { feedback(); openModal(); }); $('manageBtn').addEventListener('click', toggleManage); $('cancelModalBtn').addEventListener('click', closeModal); $('cardForm').addEventListener('submit', saveCard); $('cardModal').addEventListener('click', (event) => { if (event.target === $('cardModal')) closeModal(); }); document.querySelectorAll('[data-quick-date]').forEach((button) => button.addEventListener('click', () => setQuickDate(Number(button.dataset.quickDate)))); document.querySelectorAll('[data-leave-type]').forEach((button) => button.addEventListener('click', () => createLeaveCard(button.dataset.leaveType))); initRecognition(); render(); }
+  document.addEventListener('DOMContentLoaded', init);
+})();

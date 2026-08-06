@@ -1,93 +1,70 @@
 <!DOCTYPE html>
 <html lang="ja">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TapTalk Mobile</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#4f46e5">
+  <title>TapTalk Mobile</title>
+  <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
+  <main class="app-shell">
+    <section id="speechDisplay" class="speech-display" aria-live="polite" aria-atomic="true">
+      <span id="speechPlaceholder">カードをタップして発話 / マイクで文字起こし</span>
+      <span id="speechText" hidden></span>
+    </section>
 
-    <!-- 発話・文字起こしテキスト表示エリア -->
-    <div id="speechDisplay">
-        <span id="speechPlaceholder">タップして発話 / マイクで文字起こし</span>
-        <span id="speechText" style="display:none;"></span>
-    </div>
+    <section class="action-bar" aria-label="操作">
+      <button class="btn btn-mic" id="micBtn" type="button">🎤 音声入力</button>
+      <button class="btn btn-add" id="addBtn" type="button">➕ カード作成</button>
+      <button class="btn btn-manage" id="manageBtn" type="button" aria-pressed="false">⚙️ 編集</button>
+    </section>
 
-    <!-- 操作ボタン -->
-    <div class="action-bar">
-        <button class="btn btn-mic" id="micBtn" onclick="toggleSpeechRecognition()">🎤 音声入力</button>
-        <button class="btn btn-add" onclick="openAddModal()">➕ カード作成</button>
-        <button class="btn btn-manage" id="manageBtn" onclick="toggleManageMode()">⚙️ 編集</button>
-    </div>
+    <section id="calendarSection" class="calendar-section" hidden aria-labelledby="leaveHeading">
+      <h1 id="leaveHeading">📅 日時を選んでワンタッチ連絡</h1>
+      <label for="leaveDateInput">日付</label>
+      <input type="date" id="leaveDateInput">
+      <div class="quick-dates" aria-label="日付の簡易選択">
+        <button type="button" data-quick-date="0">今日</button>
+        <button type="button" data-quick-date="1">明日</button>
+        <button type="button" data-quick-date="2">明後日</button>
+      </div>
+      <div class="time-picker-box">
+        <label for="leaveTimeInput">⏰ 時間（任意）</label>
+        <input type="time" id="leaveTimeInput">
+      </div>
+      <p class="section-note">種別をタップすると、発話してカードにも保存します。</p>
+      <div class="type-grid" aria-label="連絡の種別">
+        <button class="type-btn" type="button" data-leave-type="full">📅 終日お休み</button>
+        <button class="type-btn" type="button" data-leave-type="late">⏱️ 遅刻</button>
+        <button class="type-btn" type="button" data-leave-type="early">🏃 早退</button>
+        <button class="type-btn" type="button" data-leave-type="am">🌅 午前休</button>
+        <button class="type-btn" type="button" data-leave-type="pm">🌇 午後休</button>
+        <button class="type-btn" type="button" data-leave-type="hospital">🏥 通院</button>
+      </div>
+    </section>
 
-    <!-- お休み・予定設定セクション -->
-    <div id="calendarSection">
-        <h3 style="margin:0 0 8px 0; font-size:1rem;">📅 日時を選んでワンタッチ連絡</h3>
+    <nav class="tabs" id="categoryTabs" aria-label="カードのカテゴリ"></nav>
+    <section class="cards-grid" id="cardsGrid" aria-label="会話カード"></section>
+  </main>
 
-        <!-- 日付選択 -->
-        <input type="date" id="leaveDateInput"
-            style="width:100%; padding:10px; font-size:1rem; border-radius:8px; border:1px solid #cbd5e1;">
+  <div class="modal" id="cardModal" hidden role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <form class="modal-content" id="cardForm">
+      <h2 id="modalTitle">新しいカードを追加</h2>
+      <label for="modalCategory">カテゴリ</label>
+      <select id="modalCategory" required></select>
+      <label for="modalIcon">絵文字（アイコン）</label>
+      <input type="text" id="modalIcon" maxlength="8" placeholder="例: ⏱️" value="💬">
+      <label for="modalText">話す言葉（テキスト）</label>
+      <textarea id="modalText" rows="3" maxlength="200" required placeholder="例: 電車遅延で遅れます"></textarea>
+      <div class="modal-actions">
+        <button class="btn btn-cancel" id="cancelModalBtn" type="button">キャンセル</button>
+        <button class="btn btn-save" type="submit">保存</button>
+      </div>
+    </form>
+  </div>
 
-        <div class="quick-dates">
-            <button onclick="setQuickDate(0)">今日</button>
-            <button onclick="setQuickDate(1)">明日</button>
-            <button onclick="setQuickDate(2)">明後日</button>
-        </div>
-
-        <!-- 時間選択 (任意) -->
-        <div class="time-picker-box">
-            <label for="leaveTimeInput">⏰ 時間指定（必要な場合）</label>
-            <input type="time" id="leaveTimeInput" value="10:00">
-        </div>
-
-        <div style="font-size:0.85rem; color:var(--text-muted); font-weight:bold; margin-bottom:4px;">タップしてカード作成＆送信:
-        </div>
-        <div class="type-grid">
-            <button class="type-btn" onclick="generateLeaveCard('お休みします', '📅', false)">📅 終日お休み</button>
-            <button class="type-btn" onclick="generateLeaveCard('頃に到着予定です', '⏱️', true)">⏱️ 時間指定遅刻</button>
-            <button class="type-btn" onclick="generateLeaveCard('に早退します', '🏃‍♂️', true)">🏃‍♂️ 時間指定早退</button>
-            <button class="type-btn" onclick="generateLeaveCard('午前中お休みします', '🌅', false)">🌅 午前休</button>
-            <button class="type-btn" onclick="generateLeaveCard('午後からお休みします', '🌇', false)">🌇 午後休</button>
-            <button class="type-btn" onclick="generateLeaveCard('通院のため遅れます', '🏥', true)">🏥 通院（時間指定）</button>
-        </div>
-    </div>
-
-    <!-- カテゴリタブ -->
-    <div class="tabs" id="categoryTabs"></div>
-
-    <!-- カード一覧 -->
-    <div class="cards-grid" id="cardsGrid"></div>
-
-    <!-- カード作成モーダル -->
-    <div class="modal" id="addModal">
-        <div class="modal-content">
-            <h3 style="margin-top:0;">新しいカードを追加</h3>
-            <label>カテゴリ</label>
-            <select id="modalCategory"></select>
-
-            <label>絵文字（アイコン）</label>
-            <input type="text" id="modalIcon" placeholder="例: ⏱️" value="💬">
-
-            <label>話す言葉（テキスト）</label>
-            <input type="text" id="modalText" placeholder="例: 電車遅延で遅れます">
-
-            <div style="display:flex; gap:8px;">
-                <button onclick="closeAddModal()"
-                    style="flex:1; padding:12px; border-radius:8px; border:1px solid #ccc; background:#fff;">キャンセル</button>
-                <button onclick="saveNewCard()"
-                    style="flex:1; padding:12px; border-radius:8px; border:none; background:var(--primary); color:white; font-weight:bold;">追加</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- トースト通知 -->
-    <div id="toastMsg" class="toast"></div>
-
-    <!-- JavaScript機能部 -->
-    <script src="script.js"></script>
+  <div id="toastMsg" class="toast" role="status" aria-live="polite"></div>
+  <script src="script.js"></script>
 </body>
-
 </html>
