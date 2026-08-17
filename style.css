@@ -8,11 +8,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .speech-display { position:sticky; top:0; z-index:2; display:flex; align-items:center; min-height:88px; max-height:170px; overflow:auto; margin-bottom:12px; padding:16px; background:#fff; border:3px solid #1e293b; border-radius:16px; box-shadow:0 4px 12px #0f172a1a; }
 #speechText { font-size:1.35rem; font-weight:800; line-height:1.5; word-break:break-word; }
 #speechPlaceholder { color:var(--muted); font-size:1rem; font-weight:700; }
+.custom-text-label { display:block; margin:0 0 5px; color:var(--muted); font-size:.95rem; font-weight:800; }
+#customTextInput { width:100%; min-height:76px; margin:0 0 12px; padding:10px; border:2px solid #64748b; border-radius:12px; color:var(--text); background:#fff; line-height:1.45; resize:vertical; }
+.btn-custom-speak { width:100%; margin:0 0 12px; background:#7c3aed; }
 .action-bar,.modal-actions { display:flex; gap:8px; }
 .action-bar { margin-bottom:12px; }
 .btn { min-height:48px; flex:1; border:0; border-radius:12px; padding:10px 8px; color:#fff; font-weight:800; box-shadow:0 2px 4px #0f172a26; }
 .btn:active,.tab-btn:active,.type-btn:active,.card:active { transform:scale(.97); }
-.btn-mic { background:#1d4ed8; }.btn-mic.listening { background:#b91c1c; animation:pulse 1.4s infinite; }.btn-add,.btn-save { background:#047857; }.btn-manage { background:#e2e8f0; color:var(--text); }.btn-manage.is-active { background:#047857; color:#fff; }.btn-cancel { background:#fff; border:1px solid #64748b; color:var(--text); }
+.btn-mic { background:#1d4ed8; }.btn-mic.listening { background:#b91c1c; animation:pulse 1.4s infinite; }.btn-stop { background:#b91c1c; }.btn-add,.btn-save { background:#047857; }.btn-manage { background:#e2e8f0; color:var(--text); }.btn-manage.is-active { background:#047857; color:#fff; }.btn-cancel { background:#fff; border:1px solid #64748b; color:var(--text); }
 @keyframes pulse { 50% { opacity:.6; } }
 .tabs { display:flex; gap:8px; overflow-x:auto; padding:2px 0 10px; margin-bottom:2px; scrollbar-width:none; }.tabs::-webkit-scrollbar { display:none; }
 .tab-btn { flex:0 0 auto; min-height:44px; padding:8px 14px; border:2px solid #64748b; border-radius:22px; background:#fff; color:var(--text); font-weight:800; white-space:nowrap; }.tab-btn.active { background:var(--primary); border-color:var(--primary); color:#fff; }
