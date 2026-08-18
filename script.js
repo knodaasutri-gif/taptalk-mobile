@@ -47,8 +47,9 @@
     try { const AudioContext = window.AudioContext || window.webkitAudioContext; if (!AudioContext) return; state.audioContext ||= new AudioContext(); if (state.audioContext.state === 'suspended') state.audioContext.resume(); const now = state.audioContext.currentTime; const oscillator = state.audioContext.createOscillator(); const gain = state.audioContext.createGain(); oscillator.frequency.setValueAtTime(587.33, now); oscillator.frequency.exponentialRampToValueAtTime(880, now + .1); gain.gain.setValueAtTime(.08, now); gain.gain.exponentialRampToValueAtTime(.0001, now + .12); oscillator.connect(gain).connect(state.audioContext.destination); oscillator.start(now); oscillator.stop(now + .12); } catch (error) { /* audio is optional */ }
   }
   function stopSpeaking() { if (window.speechSynthesis) window.speechSynthesis.cancel(); }
-  function speak(text) { updateDisplay(text); if (!window.speechSynthesis || !text.trim()) return; stopSpeaking(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = 'ja-JP'; utterance.rate = 1; utterance.pitch = 1; window.speechSynthesis.speak(utterance); }
-  function speakCustomInput() { const input = $('customTextInput'); const text = input.value.trim(); if (!text) return; feedback(); speak(text); input.value = ''; }
+  function speak(text) { updateDisplay(text); speakText(text); }
+  function speakText(text) { if (!window.speechSynthesis || !text.trim()) return; stopSpeaking(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = 'ja-JP'; utterance.rate = 1; utterance.pitch = 1; window.speechSynthesis.speak(utterance); }
+  function speakCustomInput() { const input = $('customTextInput'); const text = input.value.trim(); if (!text) return; feedback(); speakText(text); input.value = ''; }
   function currentCards() { return state.cards.filter((card) => card.category === state.categoryId); }
   function render() { renderTabs(); renderCards(); $('calendarSection').hidden = state.categoryId !== 'leave'; }
   function renderTabs() {
