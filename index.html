@@ -10,6 +10,7 @@
 <body>
   <main class="app-shell">
     <section id="speechDisplay" class="speech-display" aria-live="polite" aria-atomic="true">
+      <button class="speech-stop-btn" id="stopSpeechBtn" type="button" aria-label="読み上げを停止">⏹ 停止</button>
       <span id="speechPlaceholder">カードをタップして発話 / マイクで文字起こし</span>
       <span id="speechText" hidden></span>
     </section>
@@ -20,7 +21,6 @@
 
     <section class="action-bar" aria-label="操作">
       <button class="btn btn-mic" id="micBtn" type="button">🎤 音声入力</button>
-      <button class="btn btn-stop" id="stopSpeechBtn" type="button">⏹ 読み上げ停止</button>
       <button class="btn btn-add" id="addBtn" type="button">➕ カード作成</button>
       <button class="btn btn-manage" id="manageBtn" type="button" aria-pressed="false">⚙️ 編集</button>
     </section>
